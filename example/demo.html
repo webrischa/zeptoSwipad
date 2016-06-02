@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" name="viewport">
+  <meta name="format-detection" content="telephone=no" />
+  <title>demo</title>
+  <link rel="stylesheet" href="../css/swipad.css">
+  <style>
+    body {
+      background: #eeeeee;
+    }
+
+    .list-link {
+      display: -webkit-box;
+      min-height: 76px;
+      padding-right: 10px;
+      margin-left: 10px;
+      border-bottom: 1px solid #ddd;
+      -webkit-box-align: center;
+    }
+
+    .list-img {
+      width: 60px;
+      height: 60px;
+    }
+
+    .list-txt {
+      width: 1px;
+      padding: 5px 0;
+      margin-left: 10px;
+      -webkit-box-flex: 1;
+    }
+
+    .list-title {
+      display: -webkit-box;
+      overflow: hidden;
+      font-size: 16px;
+      line-height: 20px;
+      color: #333;
+      text-overflow: ellipsis;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .list-date {
+      margin-top: 5px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #999;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="swipad"></div>
+</body>
+<script src="../plugins/zepto.min.js"></script>
+<script src="../src/swipad.js"></script>
+<script>
+$(function() {
+  var array = [];//导航栏内容数组，数不固定
+  //var idArray = []; //
+  var pageSize = 10;//每页数据的条数
+  //导航栏内容不固定，获取内容并初始化插件
+  $.ajax({
+    type: 'GET',
+    dataType: 'json',
+    url: 'http://192.168.2.34:3000/list',
+    success: function(data) {
+      for (var i in data) {
+        array.push(data[i].name);
+      }
+    },
+    complete: function() {
+      swiperLoad.init(params);
+    }
+  });
+  //插件中itemIndex, swpAjaxIndex, swpAjaxAllow为全局参数; swiperLoad, dropload为全局函数;
+  //插件class 导航：.swp-nav > .swp-gate > .swp-cell.on; 主体：.swp-main > .swp-item > .swp-cont; 无数据：.swp-nodata > .swp-nodata .notext; 上拉加载提示：.dropload-down > .dropload-load .loading;
+  //插件参数
+  var params = {
+    swipadNav: array, //导航栏的内容，默认最大显示4个,超过4个需滑动显示,要显示更多,配置swipadView
+    siblings: ['.swp-nav'],//除去.tempWrap以外的元素，用于非固定定位
+    swipadView : 5, //不设置，最多显示4个
+    //resetSearch: false, //搜索后滑回原来的tab是否重新加载正常列表数据
+    //searchClean: fn, …… //
+    //slideSn: undefined, //滑动前动作：fn
+    //slideEn: undefined //滑动后动作：fn
+    noDataTips: '完全没有半条数据', //当页面完全没有数据时的提醒语句
+    domDown: ['上拉加载更多', '加载中...', '没有更多的内容了...'],//加载状态的文字表述
+    loadDownFn: function(me, params, check) {
+      var counter = $('#swp_' + itemIndex).attr('counter') || 0; //每个侧滑叶已加载的页码
+      counter++;
+      $('#swp_' + itemIndex).attr('counter', counter);//记录当前的页码数
+      //fn
+      $.ajax({
+        type: 'GET',
+        dataType: 'json',
+        url: 'http://192.168.2.34:3000/list',
+        success: function(data) {
+          //没数据
+          if (data.length == 0) {
+            noData(me);
+            return;
+          }
+          var $list = $('<div></div>');
+          for (var i in data) {
+            var id = 'item_' + itemIndex + '_list_' + data[i].id; //每一个列表的id
+            var $cont = ('<a class="list-link" id="' + id + '" href="' + data[i].link + '">' +
+              '<img src="' + data[i].image + '" class="list-img">' +
+              '<div class="list-txt">' +
+              '<p class="list-title">' + data[i].title + '</p>' +
+              '<p class="list-date">' + data[i].dateTime + '</p>' +
+              '</div>' +
+              '</a>');
+            //判断页面内是否已有相应内容（去重）
+            if ($('#' + id).length == 0) {
+              $list.append($cont);
+            };
+            //去重方法二
+            //if(idArray.indexOf(id) == -1){
+            //  idArray.push(id);
+            //  $list.append($cont);
+            //};
+          };
+          //防止页面内容加载错误
+          if (swpAjaxIndex != itemIndex) {
+            swpAjaxIndex = itemIndex;
+            swpAjaxAllow = true;
+            return;
+          };
+          //向相应的tab添加内容
+          $('#swp_' + itemIndex).find('.swp-cont').append($list.children());
+          //每次数据加载完，必须重置
+          swiperLoad.resetHeight(params);
+          swpAjaxAllow = true;
+          me.resetload();
+        },
+        error: function() { //加载错误提示
+          swiperLoad.error(me,params,'#swp_' + itemIndex);
+        }
+      });
+    }
+  };
+});
+</script>
+</body>
+
+</html>
